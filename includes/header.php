@@ -38,17 +38,20 @@ session_start();
         .shield-icon {
             position: absolute;
             font-size: 1.5em;
-            color: white; /* Solid white shield */
-            text-shadow: 0 0 2px rgba(0,0,0,0.3); /* Adds definition */
+            color: #c0c0c0; /* Silver color */
+            text-shadow: 
+                0 0 2px rgba(0,0,0,0.3), /* Outer shadow */
+                0 0 4px rgba(255,255,255,0.5); /* Inner glow for metallic effect */
+            filter: drop-shadow(0 0 2px rgba(255,255,255,0.7)); /* Additional shine */
         }
         .heart-icon {
             position: absolute;
-            font-size: 0.8em; /* Slightly larger */
-            color: #667eea; /* Blue from your gradient for better contrast */
+            font-size: 0.8em;
+            color: #667eea; /* Blue from your gradient */
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            text-shadow: 0 0 1px rgba(255,255,255,0.5); /* White glow for visibility */
+            text-shadow: 0 0 1px rgba(255,255,255,0.5);
         }
     </style>
 </head>
