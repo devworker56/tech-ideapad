@@ -33,19 +33,22 @@ session_start();
             position: relative;
             width: 1.5em;
             height: 1.5em;
+            margin-right: 8px;
         }
         .shield-icon {
             position: absolute;
             font-size: 1.5em;
-            color: white;
+            color: white; /* Solid white shield */
+            text-shadow: 0 0 2px rgba(0,0,0,0.3); /* Adds definition */
         }
         .heart-icon {
             position: absolute;
-            font-size: 0.7em;
-            color: #764ba2;
+            font-size: 0.8em; /* Slightly larger */
+            color: #667eea; /* Blue from your gradient for better contrast */
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
+            text-shadow: 0 0 1px rgba(255,255,255,0.5); /* White glow for visibility */
         }
     </style>
 </head>
