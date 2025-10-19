@@ -9,7 +9,6 @@ session_start();
     <title>MDVA - Micro-Dons Vérifiables et Attribués</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/fontawesome.min.css" rel="stylesheet">
     <style>
         .hero-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -35,10 +34,7 @@ session_start();
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="index.php">
-                <span class="fa-layers fa-fw">
-                    <i class="fas fa-shield" style="color: #fff; font-size: 1.2em;"></i>
-                    <i class="fas fa-hand-holding-heart" style="color: #764ba2; font-size: 0.6em;"></i>
-                </span> MDVA
+                <i class="fas fa-hand-holding-heart"></i> MDVA
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
                 <span class="navbar-toggler-icon"></span>
