@@ -29,15 +29,20 @@ session_start();
             padding: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
+        .navbar-brand .fa-layers {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
     </style>
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="index.php">
-                <span class="fa-layers fa-fw">
-                    <i class="fas fa-shield" style="color: #fff; font-size: 1.2em;"></i>
-                    <i class="fas fa-hand-holding-heart" style="color: #764ba2; font-size: 0.6em;"></i>
+                <span class="fa-layers fa-fw" style="font-size: 1.5em;">
+                    <i class="fas fa-shield" style="color: #fff;"></i>
+                    <i class="fas fa-hand-holding-heart" style="color: #764ba2; font-size: 0.5em; transform: translateY(2px);"></i>
                 </span> MDVA
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
