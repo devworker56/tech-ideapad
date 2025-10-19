@@ -9,7 +9,6 @@ session_start();
     <title>MDVA - Micro-Dons Vérifiables et Attribués</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/fontawesome.min.css" rel="stylesheet">
     <style>
         .hero-section {
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -29,10 +28,24 @@ session_start();
             padding: 20px;
             box-shadow: 0 4px 6px rgba(0,0,0,0.1);
         }
-        .navbar-brand .fa-layers {
-            display: inline-flex;
-            align-items: center;
-            justify-content: center;
+        .icon-container {
+            display: inline-block;
+            position: relative;
+            width: 1.5em;
+            height: 1.5em;
+        }
+        .shield-icon {
+            position: absolute;
+            font-size: 1.5em;
+            color: white;
+        }
+        .heart-icon {
+            position: absolute;
+            font-size: 0.7em;
+            color: #764ba2;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
         }
     </style>
 </head>
@@ -40,9 +53,9 @@ session_start();
     <nav class="navbar navbar-expand-lg navbar-dark bg-dark">
         <div class="container">
             <a class="navbar-brand" href="index.php">
-                <span class="fa-layers fa-fw" style="font-size: 1.5em;">
-                    <i class="fas fa-shield" style="color: #fff;"></i>
-                    <i class="fas fa-hand-holding-heart" style="color: #764ba2; font-size: 0.5em; transform: translateY(2px);"></i>
+                <span class="icon-container">
+                    <i class="fas fa-shield shield-icon"></i>
+                    <i class="fas fa-hand-holding-heart heart-icon"></i>
                 </span> MDVA
             </a>
             <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav">
