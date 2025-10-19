@@ -12,12 +12,12 @@ function sanitize_input($data) {
     $data = htmlspecialchars($data);
     return $data;
 }
-///-------------------------------------------------------------------------------------------
+
 /**
  * Create verifiable donation session record
  * Used when starting a donation session with per-donation charity selection
  */
-function create_verifiable_donation_session($donor_id, $user_id, $charity_id, $module_id, $db) {
+function create_verifiable_donation_session($donor_id, $user_id, $charity_id, $module_id, $session_id, $db) {
     $timestamp = time();
     
     // Get previous transaction hash to maintain chain
@@ -32,6 +32,7 @@ function create_verifiable_donation_session($donor_id, $user_id, $charity_id, $m
         'charity_id' => $charity_id,
         'charity_name' => $charity_name,
         'module_id' => $module_id,
+        'session_id' => $session_id,
         'action' => 'donation_session_start',
         'timestamp' => $timestamp,
         'previous_hash' => $previous_hash
@@ -43,22 +44,23 @@ function create_verifiable_donation_session($donor_id, $user_id, $charity_id, $m
     
     // Store in verifiable transactions table
     $query = "INSERT INTO verifiable_transactions 
-              (donor_id, transaction_type, transaction_data, transaction_hash, previous_hash, timestamp) 
-              VALUES (?, 'donation_session', ?, ?, ?, ?)";
+              (donor_id, transaction_type, transaction_data, transaction_hash, previous_hash, timestamp, session_id) 
+              VALUES (?, 'donation_session', ?, ?, ?, ?, ?)";
     $stmt = $db->prepare($query);
     $stmt->execute([
         $donor_id, 
         $transaction_data_json, 
         $transaction_hash,
         $previous_hash,
-        date('Y-m-d H:i:s')
+        date('Y-m-d H:i:s'),
+        $session_id
     ]);
     
-    error_log("FairGive Donation Session: Donor $user_id starting session for $charity_name via module $module_id. Transaction Hash: $transaction_hash");
+    error_log("MDVA Donation Session: Donor $user_id starting session for $charity_name via module $module_id. Session: $session_id, Transaction Hash: $transaction_hash");
     
     return $transaction_hash;
 }
-///-------------------------------------------------------------------------------------------
+
 /**
  * Check if user is logged in
  */
@@ -132,39 +134,30 @@ function get_donor_user_id($donor_id, $db) {
 /**
  * Log activity
  */
-/**
- * Log activity (updated to use description column)
- */
-function log_activity($db, $user_type, $user_id, $action, $details = '') {
+function log_activity($db, $user_type, $user_id, $action, $description = '') {
     try {
         $query = "INSERT INTO activity_logs (user_type, user_id, action, description) VALUES (?, ?, ?, ?)";
         $stmt = $db->prepare($query);
-        $stmt->execute([$user_type, $user_id, $action, $details]);
+        $stmt->execute([$user_type, $user_id, $action, $description]);
         return true;
     } catch (Exception $e) {
         error_log("Activity log insert failed: " . $e->getMessage());
         return false;
     }
 }
+
 /**
- * Send notification to WebSocket server
+ * Notify via Pusher (replaces WebSocket)
  */
-function notify_websocket($type, $data) {
+function notify_pusher($event, $data, $channel) {
     try {
-        $context = new ZMQContext();
-        $socket = $context->getSocket(ZMQ::SOCKET_PUSH, 'my pusher');
-        $socket->connect("tcp://localhost:5555");
-        
-        $message = json_encode([
-            'type' => $type,
-            'data' => $data,
-            'timestamp' => time()
-        ]);
-        
-        $socket->send($message);
+        require_once __DIR__ . '/../config/pusher.php';
+        $pusher = getPusher();
+        $pusher->trigger($channel, $event, $data);
+        error_log("Pusher notification sent: $event to $channel");
         return true;
     } catch (Exception $e) {
-        error_log("WebSocket notification failed: " . $e->getMessage());
+        error_log("Pusher error: " . $e->getMessage());
         return false;
     }
 }
@@ -280,7 +273,7 @@ function generateModuleQRData($module_id, $module_name = '', $location = '') {
         'type' => 'donation_module',
         'version' => '1.0',
         'timestamp' => time(),
-        'url' => "https://yoursite.com/donate.php?module=" . urlencode($module_id)
+        'url' => "https://tech-ideapad.com/donate.php?module=" . urlencode($module_id)
     ];
     
     return json_encode($qr_data);
@@ -446,7 +439,7 @@ function create_initial_verifiable_transaction($donor_id, $user_id, $db) {
         date('Y-m-d H:i:s')
     ]);
     
-    error_log("FairGive Initial Verifiable Record: Donor $user_id account created. Transaction Hash: $transaction_hash");
+    error_log("MDVA Initial Verifiable Record: Donor $user_id account created. Transaction Hash: $transaction_hash");
     
     return $transaction_hash;
 }
@@ -496,7 +489,7 @@ function create_verifiable_charity_selection($donor_id, $user_id, $old_charity_i
     $stmt = $db->prepare($query);
     $stmt->execute([$donor_id, $old_charity_id, $new_charity_id, $transaction_hash]);
     
-    error_log("FairGive Verifiable Record: Donor $user_id changed charity from $old_charity_id to $new_charity_id. Transaction Hash: $transaction_hash");
+    error_log("MDVA Verifiable Record: Donor $user_id changed charity from $old_charity_id to $new_charity_id. Transaction Hash: $transaction_hash");
     
     return $transaction_hash;
 }
@@ -543,7 +536,7 @@ function create_verifiable_donation($donor_id, $user_id, $charity_id, $amount, $
         date('Y-m-d H:i:s')
     ]);
     
-    error_log("FairGive Verifiable Record: Donor $user_id donated $amount to $charity_name via module $module_id. Transaction Hash: $transaction_hash");
+    error_log("MDVA Verifiable Record: Donor $user_id donated $amount to $charity_name via module $module_id. Transaction Hash: $transaction_hash");
     
     return $transaction_hash;
 }
@@ -616,6 +609,46 @@ function get_donor_verifiable_history($donor_id, $db, $limit = 50) {
     }
     
     return $transactions;
+}
+
+/**
+ * Generate simplified tax receipt data (for mobile app)
+ */
+function generate_tax_receipt_data_simple($donor_id, $year, $db) {
+    $query = "SELECT 
+                SUM(amount) as total_amount,
+                COUNT(*) as donation_count,
+                MIN(created_at) as first_donation,
+                MAX(created_at) as last_donation
+              FROM donations 
+              WHERE donor_id = ? AND YEAR(created_at) = ?";
+    $stmt = $db->prepare($query);
+    $stmt->execute([$donor_id, $year]);
+    
+    $data = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    if (!$data || $data['total_amount'] == null) {
+        return [
+            'year' => $year,
+            'total_amount' => 0,
+            'donation_count' => 0,
+            'first_donation' => null,
+            'last_donation' => null,
+            'receipt_number' => null
+        ];
+    }
+    
+    // Generate receipt number
+    $receipt_number = 'RCPT-' . $year . '-' . str_pad($donor_id, 6, '0', STR_PAD_LEFT) . '-' . time();
+    
+    return [
+        'year' => $year,
+        'total_amount' => $data['total_amount'],
+        'donation_count' => $data['donation_count'],
+        'first_donation' => $data['first_donation'],
+        'last_donation' => $data['last_donation'],
+        'receipt_number' => $receipt_number
+    ];
 }
 
 ?>

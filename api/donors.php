@@ -1,7 +1,7 @@
 <?php
 header('Content-Type: application/json');
 require_once '../config/database.php';
-require_once '../includes/functions.php'; // ADD THIS LINE
+require_once '../includes/functions.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -59,7 +59,7 @@ try {
                 break;
             }
             
-            // Insert donor
+            // Insert donor (NO selected_charity_id)
             $hashed_password = password_hash($password, PASSWORD_DEFAULT);
             $query = "INSERT INTO donors (user_id, email, password) VALUES (?, ?, ?)";
             $stmt = $db->prepare($query);
@@ -100,8 +100,8 @@ try {
                     'user' => [
                         'id' => $donor['id'],
                         'user_id' => $donor['user_id'],
-                        'email' => $donor['email'],
-                        'selected_charity_id' => $donor['selected_charity_id']
+                        'email' => $donor['email']
+                        // NO selected_charity_id in response
                     ]
                 ]);
             } else {
@@ -110,91 +110,7 @@ try {
             }
             break;
             
-        case 'select_charity':
-            // VERIFIABLE CHARITY SELECTION WITH BLOCKCHAIN-ESQUE RECORDING
-            $donor_id = $input['donor_id'] ?? '';
-            $charity_id = $input['charity_id'] ?? '';
-            
-            error_log("Verifiable charity selection called with donor_id: $donor_id, charity_id: $charity_id");
-            
-            if (empty($donor_id) || empty($charity_id)) {
-                http_response_code(400);
-                echo json_encode([
-                    'success' => false, 
-                    'message' => 'Missing required fields',
-                    'received_data' => $input
-                ]);
-                break;
-            }
-            
-            try {
-                // Start transaction for atomic operation
-                $db->beginTransaction();
-                
-                // Get current charity selection for the audit trail
-                $query = "SELECT selected_charity_id, user_id FROM donors WHERE id = ?";
-                $stmt = $db->prepare($query);
-                $stmt->execute([$donor_id]);
-                $current_donor = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$current_donor) {
-                    throw new Exception("Donor not found");
-                }
-                
-                $old_charity_id = $current_donor['selected_charity_id'];
-                $donor_user_id = $current_donor['user_id'];
-                
-                // Verify charity exists and is approved
-                $query = "SELECT id, name FROM charities WHERE id = ? AND approved = 1";
-                $stmt = $db->prepare($query);
-                $stmt->execute([$charity_id]);
-                $charity = $stmt->fetch(PDO::FETCH_ASSOC);
-                
-                if (!$charity) {
-                    throw new Exception("Charity not found or not approved");
-                }
-                
-                // Update charity selection
-                $query = "UPDATE donors SET selected_charity_id = ? WHERE id = ?";
-                $stmt = $db->prepare($query);
-                
-                if (!$stmt->execute([$charity_id, $donor_id])) {
-                    throw new Exception("Failed to update charity selection in database");
-                }
-                
-                // USE THE FUNCTION FROM functions.php INSTEAD OF DUPLICATED CODE
-                $transaction_hash = create_verifiable_charity_selection(
-                    $donor_id, 
-                    $donor_user_id, 
-                    $old_charity_id, 
-                    $charity_id, 
-                    $charity['name'], 
-                    $db
-                );
-                
-                $db->commit();
-                
-                echo json_encode([
-                    'success' => true, 
-                    'message' => 'Charity selection updated and recorded to FairGive verifiable ledger',
-                    'transaction_hash' => $transaction_hash,
-                    'charity_name' => $charity['name'],
-                    'verified' => true,
-                    'donor_id' => $donor_user_id,
-                    'timestamp' => date('Y-m-d H:i:s')
-                ]);
-                
-            } catch (Exception $e) {
-                $db->rollBack();
-                http_response_code(500);
-                error_log("FairGive Verifiable Charity Selection Failed: " . $e->getMessage());
-                echo json_encode([
-                    'success' => false, 
-                    'message' => 'Failed to update verifiable charity selection',
-                    'error' => $e->getMessage()
-                ]);
-            }
-            break;
+        // REMOVED: select_charity action - charity selection is now per-session only
             
         default:
             http_response_code(400);
