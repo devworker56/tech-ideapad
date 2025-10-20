@@ -1,8 +1,13 @@
-    <footer class="bg-dark text-light py-4 mt-5">
+<footer class="bg-dark text-light py-4 mt-5">
         <div class="container">
             <div class="row">
                 <div class="col-md-6">
-                    <h5><i class="fas fa-hand-holding-heart"></i> MDVA</h5>
+                    <h5>
+                        <span class="footer-icon-container">
+                            <i class="fas fa-shield footer-shield-icon"></i>
+                            <i class="fas fa-hand-holding-heart footer-heart-icon"></i>
+                        </span> MDVA
+                    </h5>
                     <p>Verified and Attributed Micro-Donation Ecosystem</p>
                 </div>
                 <div class="col-md-6 text-end">
