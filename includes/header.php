@@ -47,11 +47,11 @@ session_start();
         .heart-icon {
             position: absolute;
             font-size: 0.8em;
-            color: #667eea; /* Blue from your gradient */
+            color: white; /* Changed to white */
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            text-shadow: 0 0 1px rgba(255,255,255,0.5);
+            text-shadow: 0 0 1px rgba(0,0,0,0.5); /* Changed to dark shadow for better visibility */
         }
     </style>
 </head>
