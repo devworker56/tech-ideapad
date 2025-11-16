@@ -9,7 +9,7 @@ require_once '../config/database.php';
 require_once '../includes/functions.php';
 
 // Include barcode generator library
-require_once '../Lib/barcode-generator/autoload.php';
+require_once '../Lib/phpqrcode/qrlib.php';
 
 $database = new Database();
 $db = $database->getConnection();
