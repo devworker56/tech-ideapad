@@ -23,17 +23,19 @@ if (isset($_POST['generate_single'])) {
         if ($module) {
             $qr_file = generateModuleQRCode($module_id, $module['name'], $module['location']);
             $success_message = "QR code generated for module: " . htmlspecialchars($module_id);
+            $preview_file = $qr_file;
+            $preview_data = $module_id;
         }
     } elseif (!empty($barcode_data)) {
-        // Generate custom barcode
-        $barcode_file = generateCustomBarcode($barcode_data, $type);
-        $success_message = "Barcode generated successfully";
+        // Use AJAX to generate barcode
+        $preview_file = ''; // Will be set via AJAX
+        $preview_data = $barcode_data;
     }
 }
 
 if (isset($_POST['generate_all'])) {
     $generated = generateAllModuleQRCodes($db);
-    $success_message = "Generated " . count($generated) . " QR codes: " . implode(', ', array_column($generated, 'module_id'));
+    $success_message = "Generated " . count($generated) . " QR codes";
 }
 
 // Get all modules for dropdown
@@ -51,29 +53,6 @@ function getActiveModules($db) {
     $stmt = $db->prepare($query);
     $stmt->execute();
     return $stmt->fetchAll(PDO::FETCH_ASSOC);
-}
-
-function generateCustomBarcode($data, $type = 'QRCODE') {
-    require_once '../Lib/phpqrcode/qrlib.php'; // For QR codes
-    // You'll need to add a barcode library for other types
-    
-    $barcodeDir = "../barcodes/";
-    if (!file_exists($barcodeDir)) {
-        mkdir($barcodeDir, 0755, true);
-    }
-    
-    $filename = 'barcode_' . md5($data . $type . time()) . '.png';
-    $filepath = $barcodeDir . $filename;
-    
-    if ($type === 'QRCODE') {
-        QRcode::png($data, $filepath, QR_ECLEVEL_L, 10, 2);
-    } else {
-        // For other barcode types, you'd use a barcode library
-        // This is a placeholder - you'd implement based on your chosen library
-        generateOtherBarcodeType($data, $type, $filepath);
-    }
-    
-    return $filepath;
 }
 
 include '../includes/header.php';
@@ -94,10 +73,10 @@ include '../includes/header.php';
                     <h5 class="mb-0">Generate Single Code</h5>
                 </div>
                 <div class="card-body">
-                    <form method="POST">
+                    <form id="barcodeForm" method="POST">
                         <div class="mb-3">
                             <label class="form-label">Generate for Module</label>
-                            <select name="module_id" class="form-control">
+                            <select name="module_id" id="module_id" class="form-control">
                                 <option value="">-- Select Module --</option>
                                 <?php foreach($modules as $module): ?>
                                 <option value="<?php echo htmlspecialchars($module['module_id']); ?>">
@@ -111,13 +90,13 @@ include '../includes/header.php';
                         
                         <div class="mb-3">
                             <label class="form-label">Custom Barcode/QR Code</label>
-                            <input type="text" name="barcode_data" class="form-control" 
+                            <input type="text" name="barcode_data" id="barcode_data" class="form-control" 
                                    placeholder="Enter custom text or numbers">
                         </div>
                         
                         <div class="mb-3">
                             <label class="form-label">Code Type</label>
-                            <select name="type" class="form-control">
+                            <select name="type" id="barcode_type" class="form-control">
                                 <option value="QRCODE">QR Code</option>
                                 <option value="CODE128">Barcode (CODE128)</option>
                                 <option value="CODE39">Barcode (CODE39)</option>
@@ -145,7 +124,7 @@ include '../includes/header.php';
                         <button id="printSingle" class="btn btn-success" disabled onclick="printSingleCode()">
                             <i class="fas fa-print"></i> Print This Code
                         </button>
-                        <a href="print_labels.php" class="btn btn-outline-primary">
+                        <a href="print_bulk_labels.php" class="btn btn-outline-primary">
                             <i class="fas fa-tags"></i> Print Multiple Labels
                         </a>
                     </div>
@@ -193,33 +172,52 @@ include '../includes/header.php';
 
 <script>
 // Handle form submission with AJAX for preview
-document.querySelector('form').addEventListener('submit', function(e) {
+document.getElementById('barcodeForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
-    const formData = new FormData(this);
+    const moduleId = document.getElementById('module_id').value;
+    const barcodeData = document.getElementById('barcode_data').value;
+    const barcodeType = document.getElementById('barcode_type').value;
     
-    fetch('generate_single_code.php', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.success) {
-            document.getElementById('codePreview').innerHTML = data.html;
-            document.getElementById('printSingle').disabled = false;
-            window.currentCode = {
-                url: data.file_url,
-                data: data.code_data,
-                type: data.type
-            };
-        } else {
-            alert('Error: ' + data.message);
-        }
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        alert('Error generating code');
-    });
+    // If module is selected, use regular form submission for QR codes
+    if (moduleId) {
+        this.submit();
+        return;
+    }
+    
+    // If custom data, use AJAX
+    if (barcodeData) {
+        const formData = new FormData();
+        formData.append('data', barcodeData);
+        formData.append('type', barcodeType);
+        formData.append('width', 2);
+        formData.append('height', 1);
+        
+        fetch('generate_barcode.php', {
+            method: 'POST',
+            body: formData
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('codePreview').innerHTML = data.html;
+                document.getElementById('printSingle').disabled = false;
+                window.currentCode = {
+                    url: data.barcode_url,
+                    data: barcodeData,
+                    type: barcodeType
+                };
+            } else {
+                alert('Error: ' + data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error generating code');
+        });
+    } else {
+        alert('Please enter some data or select a module');
+    }
 });
 
 function printSingleCode() {
