@@ -88,30 +88,53 @@ $total_donors = $stmt->fetch(PDO::FETCH_ASSOC);
     <div class="col-12">
         <div class="card">
             <div class="card-header">
-                <h5 class="mb-0">QR Code Generation & Printing</h5>
+                <h5 class="mb-0">Station QR Code Generator</h5>
             </div>
             <div class="card-body">
                 <div class="row">
                     <div class="col-md-6">
                         <div class="card">
                             <div class="card-body">
-                                <h6>Generate QR Code</h6>
-                                <form id="qrForm">
+                                <h6>Station Information</h6>
+                                <form id="stationForm">
                                     <div class="mb-3">
-                                        <label for="qr_data" class="form-label">QR Code Content</label>
-                                        <input type="text" class="form-control" id="qr_data" 
-                                               placeholder="Enter text or numbers" required>
+                                        <label for="stationId" class="form-label">Station ID *</label>
+                                        <input type="text" class="form-control" id="stationId" 
+                                               placeholder="Enter station ID" required>
                                     </div>
                                     <div class="mb-3">
-                                        <label for="qr_size" class="form-label">Size</label>
-                                        <select class="form-control" id="qr_size">
-                                            <option value="3">Small</option>
-                                            <option value="5" selected>Medium</option>
-                                            <option value="8">Large</option>
-                                        </select>
+                                        <label for="locationName" class="form-label">Location Name *</label>
+                                        <input type="text" class="form-control" id="locationName" 
+                                               placeholder="e.g., Montreal Central Mall" required>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="address" class="form-label">Address *</label>
+                                        <input type="text" class="form-control" id="address" 
+                                               placeholder="Street address" required>
+                                    </div>
+                                    <div class="row">
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="city" class="form-label">City *</label>
+                                                <input type="text" class="form-control" id="city" 
+                                                       placeholder="City" required>
+                                            </div>
+                                        </div>
+                                        <div class="col-md-6">
+                                            <div class="mb-3">
+                                                <label for="province" class="form-label">Province *</label>
+                                                <input type="text" class="form-control" id="province" 
+                                                       placeholder="Province" required>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <label for="postalCode" class="form-label">Postal Code *</label>
+                                        <input type="text" class="form-control" id="postalCode" 
+                                               placeholder="A1A 1A1" required>
                                     </div>
                                     <button type="submit" class="btn btn-primary">
-                                        <i class="fas fa-qrcode"></i> Generate QR Code
+                                        <i class="fas fa-qrcode"></i> Generate Station QR Code
                                     </button>
                                 </form>
                             </div>
@@ -121,11 +144,17 @@ $total_donors = $stmt->fetch(PDO::FETCH_ASSOC);
                         <div class="card">
                             <div class="card-body">
                                 <h6>QR Code Preview & Printing</h6>
-                                <div id="qrPreview" class="text-center mb-3" style="min-height: 150px; border: 1px dashed #ccc; padding: 20px;">
-                                    <p class="text-muted">QR code will appear here</p>
+                                <div id="qrPreview" class="text-center mb-3" style="min-height: 200px; border: 1px dashed #ccc; padding: 20px;">
+                                    <p class="text-muted">Station QR code will appear here</p>
                                 </div>
-                                <button id="printQR" class="btn btn-success w-100" disabled onclick="printQRCode()">
-                                    <i class="fas fa-print"></i> Print QR Code
+                                
+                                <div id="stationInfo" class="mb-3" style="display: none;">
+                                    <h6>Station Details:</h6>
+                                    <div id="stationDetails" class="small"></div>
+                                </div>
+                                
+                                <button id="printQR" class="btn btn-success w-100" disabled onclick="printStationQRCode()">
+                                    <i class="fas fa-print"></i> Print Station QR Code
                                 </button>
                                 <a href="generate_all_qr_codes.php" class="btn btn-outline-primary mt-2 w-100">
                                     <i class="fas fa-qrcode"></i> Advanced QR Code Generator
@@ -140,24 +169,35 @@ $total_donors = $stmt->fetch(PDO::FETCH_ASSOC);
 </div>
 
 <script>
-// Handle QR code form submission
-document.getElementById('qrForm').addEventListener('submit', function(e) {
+// Handle station form submission
+document.getElementById('stationForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
-    const qrData = document.getElementById('qr_data').value;
-    const qrSize = document.getElementById('qr_size').value;
+    // Collect all form data
+    const stationData = {
+        stationId: document.getElementById('stationId').value,
+        locationName: document.getElementById('locationName').value,
+        address: document.getElementById('address').value,
+        city: document.getElementById('city').value,
+        province: document.getElementById('province').value,
+        postalCode: document.getElementById('postalCode').value
+    };
     
-    if (!qrData) {
-        alert('Please enter some text for the QR code');
-        return;
+    // Validate required fields
+    for (const key in stationData) {
+        if (!stationData[key].trim()) {
+            alert('Please fill in all required fields');
+            return;
+        }
     }
     
     // Show loading
-    document.getElementById('qrPreview').innerHTML = '<p>Generating QR code...</p>';
+    document.getElementById('qrPreview').innerHTML = '<p>Generating station QR code...</p>';
+    document.getElementById('stationInfo').style.display = 'none';
     
-    // Use simple form data
+    // Send data to generate QR code
     const formData = new FormData();
-    formData.append('data', qrData);
+    formData.append('data', JSON.stringify(stationData));
     formData.append('type', 'QRCODE');
     
     fetch('generate_barcode.php', {
@@ -167,11 +207,27 @@ document.getElementById('qrForm').addEventListener('submit', function(e) {
     .then(response => response.json())
     .then(data => {
         if (data.success) {
+            // Display QR code
             document.getElementById('qrPreview').innerHTML = data.html;
+            
+            // Display station details
+            document.getElementById('stationDetails').innerHTML = `
+                <strong>Station ID:</strong> ${stationData.stationId}<br>
+                <strong>Location:</strong> ${stationData.locationName}<br>
+                <strong>Address:</strong> ${stationData.address}<br>
+                <strong>City:</strong> ${stationData.city}<br>
+                <strong>Province:</strong> ${stationData.province}<br>
+                <strong>Postal Code:</strong> ${stationData.postalCode}
+            `;
+            document.getElementById('stationInfo').style.display = 'block';
+            
+            // Enable print button
             document.getElementById('printQR').disabled = false;
-            window.currentQRCode = {
+            
+            // Store data for printing
+            window.currentStationQR = {
                 url: data.barcode_url,
-                data: data.code_data
+                stationData: stationData
             };
         } else {
             alert('Error: ' + data.message);
@@ -185,50 +241,79 @@ document.getElementById('qrForm').addEventListener('submit', function(e) {
     });
 });
 
-function printQRCode() {
-    if (!window.currentQRCode) {
+function printStationQRCode() {
+    if (!window.currentStationQR) {
         alert('No QR code to print');
         return;
     }
     
+    const station = window.currentStationQR.stationData;
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Print QR Code</title>
+            <title>Print Station QR Code - ${station.stationId}</title>
             <style>
                 body { 
                     margin: 0; 
                     padding: 20px; 
-                    display: flex; 
-                    justify-content: center; 
-                    align-items: center;
-                    min-height: 100vh;
                     font-family: Arial, sans-serif;
                 }
-                .qr-container {
-                    text-align: center;
-                    border: 1px solid #000;
-                    padding: 20px;
+                .label-container {
+                    border: 2px solid #000;
+                    padding: 15px;
                     max-width: 300px;
                     margin: 0 auto;
                 }
-                .qr-container img {
+                .qr-code {
+                    text-align: center;
+                    margin-bottom: 15px;
+                }
+                .qr-code img {
                     max-width: 100%;
                     height: auto;
                 }
+                .station-info {
+                    font-size: 12px;
+                    line-height: 1.4;
+                }
+                .station-info strong {
+                    display: block;
+                    margin-top: 5px;
+                }
+                .header {
+                    text-align: center;
+                    border-bottom: 2px solid #333;
+                    padding-bottom: 10px;
+                    margin-bottom: 10px;
+                }
                 @media print {
-                    body { margin: 0; padding: 0; }
-                    .qr-container { border: none; }
+                    body { margin: 0; padding: 10px; }
+                    .label-container { border: 1px solid #000; }
                 }
             </style>
         </head>
         <body>
-            <div class="qr-container">
-                <img src="${window.currentQRCode.url}" alt="QR Code">
-                <div style="margin-top: 10px; font-size: 14px; font-weight: bold;">${window.currentQRCode.data}</div>
-                <div style="margin-top: 5px; font-size: 10px; color: #666;">
+            <div class="label-container">
+                <div class="header">
+                    <h3 style="margin: 0; color: #2196F3;">MDVA</h3>
+                    <p style="margin: 0; font-size: 14px;">Donation Station</p>
+                </div>
+                
+                <div class="qr-code">
+                    <img src="${window.currentStationQR.url}" alt="Station QR Code">
+                </div>
+                
+                <div class="station-info">
+                    <strong>Station ID:</strong> ${station.stationId}
+                    <strong>Location:</strong> ${station.locationName}
+                    <strong>Address:</strong> ${station.address}
+                    <strong>City:</strong> ${station.city}, ${station.province}
+                    <strong>Postal Code:</strong> ${station.postalCode}
+                </div>
+                
+                <div style="text-align: center; margin-top: 10px; font-size: 10px; color: #666;">
                     MDVA System • ${new Date().toLocaleDateString()}
                 </div>
             </div>
