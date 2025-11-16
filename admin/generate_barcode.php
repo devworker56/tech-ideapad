@@ -1,75 +1,55 @@
 <?php
 session_start();
 if(!isset($_SESSION['user_type']) || $_SESSION['user_type'] != 'admin') {
-    header("Location: ../auth/login.php");
+    header('Content-Type: application/json');
+    echo json_encode(['success' => false, 'message' => 'Unauthorized']);
     exit();
 }
 
-require_once '../config/database.php';
-require_once '../includes/functions.php';
+$data = $_POST['data'] ?? '';
+$type = $_POST['type'] ?? 'QRCODE'; // Default to QRCODE since that's what you have
+$width = $_POST['width'] ?? 2;
+$height = $_POST['height'] ?? 1;
 
-// Include barcode generator library
-require_once '../Lib/phpqrcode/qrlib.php';
+header('Content-Type: application/json');
 
-$database = new Database();
-$db = $database->getConnection();
-
-if ($_POST) {
-    $data = $_POST['data'] ?? '';
-    $type = $_POST['type'] ?? 'CODE128';
-    $width = $_POST['width'] ?? 2;
-    $height = $_POST['height'] ?? 1;
-    
-    header('Content-Type: application/json');
-    
-    if (empty($data)) {
-        echo json_encode(['success' => false, 'message' => 'Barcode data is required']);
-        exit;
-    }
-    
-    try {
-        // Generate barcode
-        $barcodeFile = generateBarcode($data, $type, $width, $height);
-        
-        echo json_encode([
-            'success' => true,
-            'barcode_url' => $barcodeFile,
-            'html' => '<img src="' . $barcodeFile . '" alt="Barcode" class="img-fluid" style="max-width: 100%; height: auto;">'
-        ]);
-    } catch (Exception $e) {
-        echo json_encode(['success' => false, 'message' => 'Error generating barcode: ' . $e->getMessage()]);
-    }
+if (empty($data)) {
+    echo json_encode(['success' => false, 'message' => 'Data is required']);
     exit;
 }
 
-function generateBarcode($data, $type = 'CODE128', $width = 2, $height = 1) {
+try {
+    // Use ONLY the phpqrcode library that you actually have
+    require_once '../Lib/phpqrcode/qrlib.php';
+    
     $barcodeDir = "../barcodes/";
     if (!file_exists($barcodeDir)) {
         mkdir($barcodeDir, 0755, true);
     }
     
-    $filename = 'barcode_' . md5($data . $type . time()) . '.png';
+    $filename = 'code_' . md5($data . $type . time()) . '.png';
     $filepath = $barcodeDir . $filename;
     
-    // Use the barcode generator
-    $barcode = new \Com\Tecnick\Barcode\Barcode();
+    // Always generate QR codes for now (since that's the library you have)
+    QRcode::png($data, $filepath, QR_ECLEVEL_L, 10, 2);
     
-    try {
-        $barcodeObj = $barcode->getBarcodeObj(
-            $type,
-            $data,
-            $width * 150,  // width in pixels
-            $height * 50,  // height in pixels
-            'black',
-            [-2, -2, -2, -2]
-        );
-        
-        $imageData = $barcodeObj->getPngData();
-        file_put_contents($filepath, $imageData);
-        
-        return $barcodeDir . $filename;
-    } catch (Exception $e) {
-        throw new Exception('Barcode generation failed: ' . $e->getMessage());
-    }
+    echo json_encode([
+        'success' => true,
+        'barcode_url' => $filepath,
+        'code_data' => $data,
+        'type' => 'QR Code',
+        'html' => '
+            <div class="text-center">
+                <img src="' . $filepath . '" alt="QR Code" class="img-fluid" style="max-width: 200px;">
+                <div class="mt-2">
+                    <strong>Data:</strong> ' . htmlspecialchars($data) . '<br>
+                    <strong>Type:</strong> QR Code
+                </div>
+            </div>
+        '
+    ]);
+    
+} catch (Exception $e) {
+    echo json_encode(['success' => false, 'message' => 'Error generating QR code: ' . $e->getMessage()]);
 }
 ?>
