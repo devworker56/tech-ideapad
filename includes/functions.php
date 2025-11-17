@@ -147,51 +147,25 @@ function log_activity($db, $user_type, $user_id, $action, $description = '') {
 }
 
 /**
- * Notify via Pusher HTTP API (no SDK required)
+ * Notify via Pusher using PHP SDK
  */
 function notify_pusher($event, $data, $channel) {
     try {
-        $app_id = '2065620';
-        $key = 'fe6f264f2fba2f7bc4a2';
-        $secret = '7cf64dce7ff9a89e0450';
-        $cluster = 'us2';
+        // Include your Pusher config
+        require_once '../config/pusher.php';
         
-        $postData = [
-            'name' => $event,
-            'data' => json_encode($data),
-            'channels' => [$channel]
-        ];
-        
-        $url = "https://api-{$cluster}.pusher.com/apps/{$app_id}/events";
-        
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, $url);
-        curl_setopt($ch, CURLOPT_POST, 1);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($postData));
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-        curl_setopt($ch, CURLOPT_HTTPHEADER, [
-            'Content-Type: application/json',
-            'X-Pusher-Library: pusher-http-php 7.2.0'
-        ]);
-        curl_setopt($ch, CURLOPT_USERPWD, $key . ":" . $secret);
-        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-        curl_setopt($ch, CURLOPT_TIMEOUT, 10);
-        
-        $result = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $curlError = curl_error($ch);
-        curl_close($ch);
-        
-        if ($httpCode === 200) {
-            error_log("✅ Pusher HTTP API: $event to $channel - SUCCESS");
-            return true;
-        } else {
-            error_log("❌ Pusher HTTP API failed: $httpCode - $result - cURL: $curlError");
+        $pusher = getPusher();
+        if (!$pusher) {
+            error_log("❌ Pusher not initialized");
             return false;
         }
         
+        $result = $pusher->trigger($channel, $event, $data);
+        error_log("✅ Pusher SDK: $event to $channel - SUCCESS");
+        return true;
+        
     } catch (Exception $e) {
-        error_log("❌ Pusher HTTP error: " . $e->getMessage());
+        error_log("❌ Pusher SDK error: " . $e->getMessage());
         return false;
     }
 }
