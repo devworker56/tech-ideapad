@@ -7,20 +7,7 @@ $database = new Database();
 $db = $database->getConnection();
 
 $action = $_GET['action'] ?? '';
-
-// IMPROVED INPUT HANDLING - Support both GET and POST
-$input = [];
-if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-    $contentType = $_SERVER['CONTENT_TYPE'] ?? '';
-    
-    if (strpos($contentType, 'application/json') !== false) {
-        $input = json_decode(file_get_contents('php://input'), true) ?? [];
-    } else {
-        $input = $_POST;
-    }
-} else {
-    $input = $_GET; // Also accept GET parameters
-}
+$input = json_decode(file_get_contents('php://input'), true);
 
 // Enable CORS for mobile app
 header('Access-Control-Allow-Origin: *');
@@ -40,18 +27,30 @@ try {
             break;
             
         case 'approve':
-            // Allow both GET and POST for admin dashboard compatibility
-            approveCharity($db, $input);
+            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+                approveCharity($db, $input);
+            } else {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+            }
             break;
             
         case 'reject':
-            // Allow both GET and POST for admin dashboard compatibility
-            rejectCharity($db, $input);
+            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+                rejectCharity($db, $input);
+            } else {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+            }
             break;
             
         case 'revoke':
-            // Allow both GET and POST for admin dashboard compatibility
-            revokeCharity($db, $input);
+            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+                revokeCharity($db, $input);
+            } else {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'Method not allowed']);
+            }
             break;
             
         default:
@@ -85,8 +84,7 @@ function getApprovedCharities($db) {
  * Approve a charity and notify mobile apps
  */
 function approveCharity($db, $data) {
-    // FIXED: Support both GET (id parameter) and POST (id in data)
-    $charity_id = $data['id'] ?? $data['charity_id'] ?? $_GET['id'] ?? '';
+    $charity_id = $data['id'] ?? $data['charity_id'] ?? '';
     
     if (empty($charity_id)) {
         http_response_code(400);
@@ -94,44 +92,28 @@ function approveCharity($db, $data) {
         return;
     }
     
-    // Validate charity exists
-    $query = "SELECT id, name, description FROM charities WHERE id = ?";
-    $stmt = $db->prepare($query);
-    $stmt->execute([$charity_id]);
-    $charity = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$charity) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Charity not found']);
-        return;
-    }
-    
-    $query = "UPDATE charities SET approved = 1, updated_at = NOW() WHERE id = ?";
+    $query = "UPDATE charities SET approved = 1 WHERE id = ?";
     $stmt = $db->prepare($query);
     
     if($stmt->execute([$charity_id])) {
-        // Get updated charity info for notification
+        // Get charity info for notification
         $query = "SELECT id, name, description FROM charities WHERE id = ?";
         $stmt = $db->prepare($query);
         $stmt->execute([$charity_id]);
         $charity = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Notify WebSocket server about new approved charity (if function exists)
-        if (function_exists('notify_websocket')) {
-            notify_websocket('new_charity', [
-                'charity_id' => $charity_id,
-                'charity_name' => $charity['name'],
-                'charity_description' => $charity['description'],
-                'action' => 'approved',
-                'timestamp' => date('Y-m-d H:i:s')
-            ]);
-        }
+        // Notify WebSocket server about new approved charity
+        notify_websocket('new_charity', [
+            'charity_id' => $charity_id,
+            'charity_name' => $charity['name'],
+            'charity_description' => $charity['description'],
+            'action' => 'approved',
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
         
-        // Log the activity (if function exists)
-        if (function_exists('log_activity')) {
-            log_activity($db, 'admin', $_SESSION['user_id'] ?? 0, 'charity_approved', 
-                "Charity '{$charity['name']}' (ID: $charity_id) approved");
-        }
+        // Log the activity
+        log_activity($db, 'admin', $_SESSION['user_id'] ?? 0, 'charity_approved', 
+            "Charity '{$charity['name']}' (ID: $charity_id) approved");
         
         echo json_encode(['success' => true, 'message' => 'Charity approved successfully']);
     } else {
@@ -144,8 +126,7 @@ function approveCharity($db, $data) {
  * Reject a charity application
  */
 function rejectCharity($db, $data) {
-    // FIXED: Support both GET (id parameter) and POST (id in data)
-    $charity_id = $data['id'] ?? $data['charity_id'] ?? $_GET['id'] ?? '';
+    $charity_id = $data['id'] ?? $data['charity_id'] ?? '';
     
     if (empty($charity_id)) {
         http_response_code(400);
@@ -159,21 +140,13 @@ function rejectCharity($db, $data) {
     $stmt->execute([$charity_id]);
     $charity = $stmt->fetch(PDO::FETCH_ASSOC);
     
-    if (!$charity) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Charity not found']);
-        return;
-    }
-    
     $query = "DELETE FROM charities WHERE id = ?";
     $stmt = $db->prepare($query);
     
     if($stmt->execute([$charity_id])) {
-        // Log the activity (if function exists)
-        if (function_exists('log_activity')) {
-            log_activity($db, 'admin', $_SESSION['user_id'] ?? 0, 'charity_rejected', 
-                "Charity '{$charity['name']}' (ID: $charity_id) rejected and deleted");
-        }
+        // Log the activity
+        log_activity($db, 'admin', $_SESSION['user_id'] ?? 0, 'charity_rejected', 
+            "Charity '{$charity['name']}' (ID: $charity_id) rejected and deleted");
             
         echo json_encode(['success' => true, 'message' => 'Charity rejected successfully']);
     } else {
@@ -186,8 +159,7 @@ function rejectCharity($db, $data) {
  * Revoke charity approval
  */
 function revokeCharity($db, $data) {
-    // FIXED: Support both GET (id parameter) and POST (id in data)
-    $charity_id = $data['id'] ?? $data['charity_id'] ?? $_GET['id'] ?? '';
+    $charity_id = $data['id'] ?? $data['charity_id'] ?? '';
     
     if (empty($charity_id)) {
         http_response_code(400);
@@ -195,19 +167,7 @@ function revokeCharity($db, $data) {
         return;
     }
     
-    // Validate charity exists and is approved
-    $query = "SELECT id, name FROM charities WHERE id = ? AND approved = 1";
-    $stmt = $db->prepare($query);
-    $stmt->execute([$charity_id]);
-    $charity = $stmt->fetch(PDO::FETCH_ASSOC);
-    
-    if (!$charity) {
-        http_response_code(404);
-        echo json_encode(['success' => false, 'message' => 'Approved charity not found']);
-        return;
-    }
-    
-    $query = "UPDATE charities SET approved = 0, updated_at = NOW() WHERE id = ?";
+    $query = "UPDATE charities SET approved = 0 WHERE id = ?";
     $stmt = $db->prepare($query);
     
     if($stmt->execute([$charity_id])) {
@@ -217,21 +177,17 @@ function revokeCharity($db, $data) {
         $stmt->execute([$charity_id]);
         $charity = $stmt->fetch(PDO::FETCH_ASSOC);
         
-        // Notify WebSocket server about charity revocation (if function exists)
-        if (function_exists('notify_websocket')) {
-            notify_websocket('charity_update', [
-                'charity_id' => $charity_id,
-                'charity_name' => $charity['name'],
-                'action' => 'revoked',
-                'timestamp' => date('Y-m-d H:i:s')
-            ]);
-        }
+        // Notify WebSocket server about charity revocation
+        notify_websocket('charity_update', [
+            'charity_id' => $charity_id,
+            'charity_name' => $charity['name'],
+            'action' => 'revoked',
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
         
-        // Log the activity (if function exists)
-        if (function_exists('log_activity')) {
-            log_activity($db, 'admin', $_SESSION['user_id'] ?? 0, 'charity_revoked', 
-                "Charity '{$charity['name']}' (ID: $charity_id) approval revoked");
-        }
+        // Log the activity
+        log_activity($db, 'admin', $_SESSION['user_id'] ?? 0, 'charity_revoked', 
+            "Charity '{$charity['name']}' (ID: $charity_id) approval revoked");
             
         echo json_encode(['success' => true, 'message' => 'Charity approval revoked']);
     } else {
