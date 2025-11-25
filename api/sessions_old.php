@@ -3,13 +3,6 @@ header('Content-Type: application/json');
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
-// ==================== DEBUG LOGGING ====================
-error_log("=== SESSIONS.PHP ACCESSED ===");
-error_log("REQUEST METHOD: " . $_SERVER['REQUEST_METHOD']);
-error_log("REQUEST URI: " . $_SERVER['REQUEST_URI']);
-error_log("QUERY STRING: " . ($_SERVER['QUERY_STRING'] ?? 'NONE'));
-error_log("ACTION FROM GET: " . ($_GET['action'] ?? 'NOT SET'));
-
 require_once '../config/database.php';
 require_once '../includes/functions.php';
 
@@ -20,7 +13,7 @@ $action = $_GET['action'] ?? '';
 $input = json_decode(file_get_contents('php://input'), true);
 
 // Log the request for debugging
-error_log("Sessions API Request: action='$action', input=" . json_encode($input));
+error_log("Sessions API Request: action=$action, input=" . json_encode($input));
 
 // CORS headers
 header('Access-Control-Allow-Origin: *');
@@ -33,30 +26,8 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 }
 
 try {
-    error_log("Processing action: '$action'");
-    
     switch($action) {
-        case 'test_simple':
-            error_log("TEST_SIMPLE case reached");
-            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-                error_log("✅ TEST_SIMPLE POST endpoint reached successfully!");
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Simple POST test works!',
-                    'data_received' => $input,
-                    'debug' => [
-                        'action' => $action,
-                        'method' => $_SERVER['REQUEST_METHOD']
-                    ]
-                ]);
-            } else {
-                http_response_code(405);
-                echo json_encode(['success' => false, 'message' => 'POST required for test']);
-            }
-            break;
-            
         case 'start_session':
-            error_log("START_SESSION case reached");
             if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 startDonationSession($db, $input);
             } else {
@@ -93,7 +64,6 @@ try {
             break;
             
         default:
-            error_log("DEFAULT case reached - Invalid action: '$action'");
             http_response_code(400);
             echo json_encode(['success' => false, 'message' => 'Invalid action: ' . $action]);
     }
