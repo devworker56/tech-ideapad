@@ -1,10 +1,12 @@
-# MDVA Fixed .htaccess
+# MDVA Basic .htaccess - Minimal Version
 RewriteEngine On
 
-# Handle API requests first - don't rewrite URLs with query parameters
-RewriteCond %{REQUEST_FILENAME} !-f
+# EXCLUDE API FOLDER from rewrite rules
+RewriteRule ^api/ - [L]
+
+# Remove .php extension (for other files, not API)
 RewriteCond %{REQUEST_FILENAME} !-d
-RewriteCond %{QUERY_STRING} !.+
+RewriteCond %{REQUEST_FILENAME}\.php -f
 RewriteRule ^(.*)$ $1.php [L]
 
 # Basic security - block direct access to sensitive directories
@@ -16,8 +18,8 @@ DirectoryIndex index.php index.html
 # Enable CORS for API
 <IfModule mod_headers.c>
     Header always set Access-Control-Allow-Origin "*"
-    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS, PUT, DELETE"
-    Header always set Access-Control-Allow-Headers "Content-Type, Authorization, X-Requested-With"
+    Header always set Access-Control-Allow-Methods "GET, POST, OPTIONS"
+    Header always set Access-Control-Allow-Headers "Content-Type, Authorization"
 </IfModule>
 
 # Handle preflight requests
