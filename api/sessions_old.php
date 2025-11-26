@@ -1,10 +1,31 @@
 <?php
+// Enable maximum error reporting
+error_reporting(E_ALL);
+ini_set('display_errors', 1);
+ini_set('log_errors', 1);
+
+// Log every request
+error_log("=== SESSIONS.PHP HIT ===");
+error_log("Request Method: " . $_SERVER['REQUEST_METHOD']);
+error_log("Request URI: " . $_SERVER['REQUEST_URI']);
+error_log("Query String: " . ($_SERVER['QUERY_STRING'] ?? 'None'));
+error_log("Content Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'None'));
+error_log("Input Data: " . file_get_contents('php://input'));
+
+// Check if required files exist
+$config_file = '../config/database.php';
+$functions_file = '../includes/functions.php';
+
+error_log("Config file exists: " . (file_exists($config_file) ? 'YES' : 'NO'));
+error_log("Functions file exists: " . (file_exists($functions_file) ? 'YES' : 'NO'));
+
+// Continue with your existing code...
+require_once $config_file;
+require_once $functions_file;
+
 header('Content-Type: application/json');
 error_reporting(E_ALL);
 ini_set('display_errors', 1);
-
-require_once '../config/database.php';
-require_once '../includes/functions.php';
 
 $database = new Database();
 $db = $database->getConnection();
@@ -27,6 +48,22 @@ if ($_SERVER['REQUEST_METHOD'] == 'OPTIONS') {
 
 try {
     switch($action) {
+        // ADD THE TEST CASE RIGHT HERE - at the beginning
+        case 'test_simple':
+            if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+                error_log("TEST_SIMPLE endpoint reached");
+                echo json_encode([
+                    'success' => true,
+                    'message' => 'Simple POST test works!',
+                    'data_received' => json_decode(file_get_contents('php://input'), true)
+                ]);
+            } else {
+                http_response_code(405);
+                echo json_encode(['success' => false, 'message' => 'POST required for test']);
+            }
+            break;
+            
+        // YOUR EXISTING CASES FOLLOW...
         case 'start_session':
             if ($_SERVER['REQUEST_METHOD'] == 'POST') {
                 startDonationSession($db, $input);
@@ -155,7 +192,7 @@ function startDonationSession($db, $data) {
         $db->commit();
         
         // Notify via Pusher about session start
-        notify_pusher('session_started', [
+        $pusher_result = notify_pusher('session_started', [
             'session_id' => $session_id,
             'donor_id' => $donor_id,
             'charity_id' => $charity_id,
@@ -163,6 +200,8 @@ function startDonationSession($db, $data) {
             'charity_name' => $charity['name'],
             'timestamp' => date('Y-m-d H:i:s')
         ], "module_$module_id");
+
+        error_log("Pusher notification result: " . ($pusher_result ? "SUCCESS" : "FAILED"));
         
         $response = [
             'success' => true, 

@@ -199,7 +199,7 @@ function startDonationSession($db, $data) {
             'module_id' => $module_id,
             'charity_name' => $charity['name'],
             'timestamp' => date('Y-m-d H:i:s')
-        ], "module_$module_id");
+        ], "private-module_$module_id");
 
         error_log("Pusher notification result: " . ($pusher_result ? "SUCCESS" : "FAILED"));
         
